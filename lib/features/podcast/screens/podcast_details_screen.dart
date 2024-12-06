@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:yogicast/core/models/podcast.dart';
 import 'package:yogicast/features/podcast/providers/podcast_provider.dart';
 import 'package:yogicast/shared/widgets/loading_overlay.dart';
+import 'package:yogicast/shared/widgets/audio_player.dart';
 
 class PodcastDetailsScreen extends StatefulWidget {
   final Podcast podcast;
@@ -20,6 +21,7 @@ class _PodcastDetailsScreenState extends State<PodcastDetailsScreen> {
   bool _isGenerating = false;
   String _generationStage = '';
   String _generationMessage = '';
+  int? _currentPlayingIndex;
 
   Widget _buildStatusIndicator(PodcastStatus status) {
     Color color;
@@ -74,10 +76,14 @@ class _PodcastDetailsScreenState extends State<PodcastDetailsScreen> {
               if (segment.visualPath != null && segment.visualPath!.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.all(8.0),
-                  child: Image.network(
-                    segment.visualPath!,
-                    height: 200,
-                    fit: BoxFit.cover,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.network(
+                      segment.visualPath!,
+                      height: 200,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                    ),
                   ),
                 ),
               Padding(
@@ -87,6 +93,27 @@ class _PodcastDetailsScreenState extends State<PodcastDetailsScreen> {
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
               ),
+              if (segment.audioPath != null && segment.audioPath!.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: AudioPlayerWidget(
+                    audioUrl: segment.audioPath!,
+                    title: 'Segment ${index + 1} Audio',
+                    onComplete: () {
+                      // Auto-play next segment if available
+                      if (_currentPlayingIndex == index &&
+                          index < widget.podcast.segments.length - 1) {
+                        setState(() {
+                          _currentPlayingIndex = index + 1;
+                        });
+                      } else {
+                        setState(() {
+                          _currentPlayingIndex = null;
+                        });
+                      }
+                    },
+                  ),
+                ),
             ],
           ),
         );
@@ -179,6 +206,19 @@ class _PodcastDetailsScreenState extends State<PodcastDetailsScreen> {
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Podcast Details'),
+          actions: [
+            if (widget.podcast.status == PodcastStatus.ready)
+              IconButton(
+                icon: const Icon(Icons.share),
+                onPressed: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Sharing coming soon!'),
+                    ),
+                  );
+                },
+              ),
+          ],
         ),
         body: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
@@ -209,9 +249,25 @@ class _PodcastDetailsScreenState extends State<PodcastDetailsScreen> {
                   message: _generationMessage,
                 ),
               const SizedBox(height: 24),
-              Text(
-                'Segments',
-                style: Theme.of(context).textTheme.titleLarge,
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Segments',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  if (widget.podcast.segments.isNotEmpty &&
+                      widget.podcast.status == PodcastStatus.ready)
+                    TextButton.icon(
+                      icon: const Icon(Icons.play_arrow),
+                      label: const Text('Play All'),
+                      onPressed: () {
+                        setState(() {
+                          _currentPlayingIndex = 0;
+                        });
+                      },
+                    ),
+                ],
               ),
               const SizedBox(height: 8),
               _buildSegmentList(),
