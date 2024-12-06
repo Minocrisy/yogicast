@@ -1,0 +1,1 @@
+# YOGICAST\n\nA Flutter application for AI-powered podcast creation with automated visual elements, built on top of GroqCasters.\n\n## Features\n\n- AI-Powered Podcast Creation using Groq API\n- Visual Element Generation using Replicate API\n- Modern Material Design UI\n- Real-time Generation Progress Tracking
