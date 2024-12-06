@@ -10,17 +10,35 @@ import 'package:yogicast/core/services/cache_service.dart';
 import 'package:yogicast/features/podcast/providers/podcast_provider.dart';
 import 'package:yogicast/features/podcast/screens/create_podcast_screen.dart';
 import 'package:yogicast/features/podcast/screens/podcast_details_screen.dart';
+import 'package:yogicast/features/settings/providers/settings_provider.dart';
+import 'package:yogicast/features/settings/screens/settings_screen.dart';
 import 'package:yogicast/shared/constants/app_theme.dart';
 import 'package:yogicast/core/services/api_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Validate environment variables
-  Env.validateEnv();
-
   // Initialize SharedPreferences
   final prefs = await SharedPreferences.getInstance();
+
+  // Initialize settings and validate environment
+  final settings = SettingsProvider(prefs);
+  if (!settings.hasRequiredKeys) {
+    // Show settings screen on first launch or when API keys are missing
+    runApp(
+      MaterialApp(
+        title: AppConfig.appName,
+        theme: AppTheme.lightTheme,
+        darkTheme: AppTheme.darkTheme,
+        themeMode: ThemeMode.system,
+        home: Provider.value(
+          value: settings,
+          child: const SettingsScreen(),
+        ),
+      ),
+    );
+    return;
+  }
 
   runApp(
     MultiProvider(
@@ -40,6 +58,7 @@ void main() async {
         Provider<CacheService>(
           create: (_) => CacheService(prefs),
         ),
+        ChangeNotifierProvider.value(value: settings),
         ChangeNotifierProvider(
           create: (context) => PodcastProvider(
             context.read<GroqService>(),
@@ -58,11 +77,17 @@ class YogicastApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final settings = context.watch<SettingsProvider>();
+    
     return MaterialApp(
       title: AppConfig.appName,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
-      themeMode: ThemeMode.system,
+      themeMode: switch (settings.themeMode) {
+        'light' => ThemeMode.light,
+        'dark' => ThemeMode.dark,
+        _ => ThemeMode.system,
+      },
       home: const HomeScreen(),
     );
   }
@@ -89,9 +114,23 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
+  void _navigateToSettings(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const SettingsScreen(),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final podcastProvider = context.watch<PodcastProvider>();
+    final settings = context.watch<SettingsProvider>();
+    
+    if (!settings.hasRequiredKeys) {
+      return const SettingsScreen();
+    }
     
     return Scaffold(
       appBar: AppBar(
@@ -156,13 +195,7 @@ class HomeScreen extends StatelessWidget {
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Settings coming soon!'),
-            ),
-          );
-        },
+        onPressed: () => _navigateToSettings(context),
         child: const Icon(Icons.settings),
       ),
     );
