@@ -5,26 +5,14 @@ class ReplicateService {
 
   ReplicateService(this._apiService);
 
-  Future<String> generateImage({
-    required String prompt,
-    int width = 768,
-    int height = 768,
+  Future<String> runModel({
+    required String modelId,
+    required Map<String, dynamic> input,
   }) async {
     try {
-      // Using Stable Diffusion model
-      const model = 'stability-ai/sdxl:39ed52f2a78e934b3ba6e2a89f5b1c712de7dfea535525255b1aa35c5565e08b';
-      
       final response = await _apiService.createPrediction(
-        model: model,
-        input: {
-          'prompt': prompt,
-          'width': width,
-          'height': height,
-          'num_outputs': 1,
-          'scheduler': 'K_EULER',
-          'num_inference_steps': 50,
-          'guidance_scale': 7.5,
-        },
+        model: modelId,
+        input: input,
       );
 
       // Get the prediction ID
@@ -38,16 +26,37 @@ class ReplicateService {
         if (status['status'] == 'succeeded') {
           final outputs = status['output'] as List;
           if (outputs.isEmpty) {
-            throw Exception('No image was generated');
+            throw Exception('No output was generated');
           }
           return outputs.first as String;
         } else if (status['status'] == 'failed') {
-          throw Exception('Image generation failed: ${status['error']}');
+          throw Exception('Model execution failed: ${status['error']}');
         }
       }
     } catch (e) {
-      throw Exception('Failed to generate image: $e');
+      throw Exception('Failed to run model: $e');
     }
+  }
+
+  Future<String> generateImage({
+    required String prompt,
+    int width = 768,
+    int height = 768,
+  }) async {
+    const modelId = 'stability-ai/sdxl:39ed52f2a78e934b3ba6e2a89f5b1c712de7dfea535525255b1aa35c5565e08b';
+    
+    return runModel(
+      modelId: modelId,
+      input: {
+        'prompt': prompt,
+        'width': width,
+        'height': height,
+        'num_outputs': 1,
+        'scheduler': 'K_EULER',
+        'num_inference_steps': 50,
+        'guidance_scale': 7.5,
+      },
+    );
   }
 
   Future<String> generatePodcastThumbnail({

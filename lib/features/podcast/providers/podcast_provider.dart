@@ -3,14 +3,23 @@ import 'package:uuid/uuid.dart';
 import 'package:yogicast/core/models/podcast.dart';
 import 'package:yogicast/core/services/groq_service.dart';
 import 'package:yogicast/core/services/replicate_service.dart';
+import 'package:yogicast/core/services/audio_service.dart';
+import 'package:yogicast/core/services/export_service.dart';
 
 class PodcastProvider extends ChangeNotifier {
   final GroqService _groqService;
   final ReplicateService _replicateService;
+  final AudioService _audioService;
+  final ExportService _exportService;
   final List<Podcast> _podcasts = [];
   Podcast? _currentPodcast;
 
-  PodcastProvider(this._groqService, this._replicateService);
+  PodcastProvider(
+    this._groqService,
+    this._replicateService,
+    this._audioService,
+    this._exportService,
+  );
 
   List<Podcast> get podcasts => List.unmodifiable(_podcasts);
   Podcast? get currentPodcast => _currentPodcast;
@@ -44,7 +53,7 @@ class PodcastProvider extends ChangeNotifier {
       // Generate individual segments
       final segmentScripts = await _groqService.generateSegmentScripts(
         mainScript: mainScript,
-        numberOfSegments: 3, // We can make this configurable later
+        numberOfSegments: 3,
       );
 
       // Create new segments with generated content
@@ -62,6 +71,34 @@ class PodcastProvider extends ChangeNotifier {
       // Update podcast with new segments
       updatedPodcast = updatedPodcast.copyWith(
         segments: newSegments,
+      );
+      _updatePodcast(updatedPodcast);
+
+      // Generate audio for each segment
+      final segmentsWithAudio = await Future.wait(
+        newSegments.map((segment) async {
+          try {
+            final audioPath = await _audioService.generateSpeech(
+              text: segment.content,
+              voice: 'v2/en_speaker_6', // Default male voice
+            );
+
+            return segment.copyWith(
+              audioPath: audioPath,
+              status: SegmentStatus.generatingVisual,
+            );
+          } catch (e) {
+            debugPrint('Error generating audio for segment ${segment.id}: $e');
+            return segment.copyWith(
+              status: SegmentStatus.error,
+            );
+          }
+        }),
+      );
+
+      // Update podcast with audio segments
+      updatedPodcast = updatedPodcast.copyWith(
+        segments: segmentsWithAudio,
       );
       _updatePodcast(updatedPodcast);
 
@@ -127,6 +164,28 @@ class PodcastProvider extends ChangeNotifier {
       );
       _updatePodcast(errorPodcast);
       rethrow;
+    }
+  }
+
+  Future<String> exportPodcast(Podcast podcast) async {
+    try {
+      // Clean up old audio files before export
+      await _audioService.cleanupOldAudioFiles();
+      
+      // Export the podcast
+      final exportPath = await _exportService.exportPodcast(podcast);
+      return exportPath;
+    } catch (e) {
+      debugPrint('Error exporting podcast: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> cleanupAudioFiles() async {
+    try {
+      await _audioService.cleanupOldAudioFiles();
+    } catch (e) {
+      debugPrint('Error cleaning up audio files: $e');
     }
   }
 

@@ -1,8 +1,11 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:yogicast/core/models/podcast.dart';
 import 'package:yogicast/features/podcast/providers/podcast_provider.dart';
+import 'package:yogicast/shared/widgets/audio_player.dart';
 import 'package:yogicast/shared/widgets/loading_overlay.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class PodcastDetailsScreen extends StatefulWidget {
   final Podcast podcast;
@@ -18,6 +21,7 @@ class PodcastDetailsScreen extends StatefulWidget {
 
 class _PodcastDetailsScreenState extends State<PodcastDetailsScreen> {
   bool _isGenerating = false;
+  bool _isExporting = false;
   String _generationStage = '';
   String _generationMessage = '';
 
@@ -87,6 +91,15 @@ class _PodcastDetailsScreenState extends State<PodcastDetailsScreen> {
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
               ),
+              if (segment.audioPath != null && segment.audioPath!.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                  child: AudioPlayerWidget(
+                    audioPath: segment.audioPath!,
+                    title: 'Segment ${index + 1} Audio',
+                  ),
+                ),
+              const SizedBox(height: 8),
             ],
           ),
         );
@@ -171,14 +184,72 @@ class _PodcastDetailsScreenState extends State<PodcastDetailsScreen> {
     }
   }
 
+  Future<void> _exportPodcast() async {
+    setState(() {
+      _isExporting = true;
+      _generationMessage = 'Exporting podcast...';
+    });
+
+    try {
+      final provider = context.read<PodcastProvider>();
+      final exportPath = await provider.exportPodcast(widget.podcast);
+      
+      if (!mounted) return;
+
+      final file = File(exportPath);
+      if (await file.exists()) {
+        // On web, we would use a different approach to handle downloads
+        if (Platform.isAndroid || Platform.isIOS) {
+          await launchUrl(Uri.file(exportPath));
+        } else {
+          // For desktop platforms, show the file in explorer/finder
+          await launchUrl(Uri.file(
+            exportPath,
+            windows: Platform.isWindows,
+          ));
+        }
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Podcast exported successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error exporting podcast: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isExporting = false;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return LoadingOverlay(
-      isLoading: _isGenerating,
+      isLoading: _isGenerating || _isExporting,
       message: _generationMessage,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Podcast Details'),
+          actions: [
+            if (widget.podcast.status == PodcastStatus.ready)
+              IconButton(
+                icon: const Icon(Icons.file_download),
+                onPressed: _isExporting ? null : _exportPodcast,
+                tooltip: 'Export Podcast',
+              ),
+          ],
         ),
         body: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
@@ -203,7 +274,7 @@ class _PodcastDetailsScreenState extends State<PodcastDetailsScreen> {
                 style: Theme.of(context).textTheme.bodyLarge,
               ),
               const SizedBox(height: 24),
-              if (_isGenerating)
+              if (_isGenerating || _isExporting)
                 GenerationProgress(
                   stage: _generationStage,
                   message: _generationMessage,
