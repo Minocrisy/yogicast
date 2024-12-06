@@ -5,6 +5,17 @@ class ReplicateService {
 
   ReplicateService(this._apiService);
 
+  Future<Map<String, dynamic>> createPrediction({
+    required String model,
+    required Map<String, dynamic> input,
+  }) async {
+    return _apiService.createPrediction(model: model, input: input);
+  }
+
+  Future<Map<String, dynamic>> getPrediction(String id) async {
+    return _apiService.getPrediction(id);
+  }
+
   Future<String> generateImage({
     required String prompt,
     int width = 768,
@@ -14,7 +25,7 @@ class ReplicateService {
       // Using Stable Diffusion model
       const model = 'stability-ai/sdxl:39ed52f2a78e934b3ba6e2a89f5b1c712de7dfea535525255b1aa35c5565e08b';
       
-      final response = await _apiService.createPrediction(
+      final response = await createPrediction(
         model: model,
         input: {
           'prompt': prompt,
@@ -33,7 +44,7 @@ class ReplicateService {
       // Poll for the result
       while (true) {
         await Future.delayed(const Duration(seconds: 2));
-        final status = await _apiService.getPrediction(predictionId);
+        final status = await getPrediction(predictionId);
         
         if (status['status'] == 'succeeded') {
           final outputs = status['output'] as List;

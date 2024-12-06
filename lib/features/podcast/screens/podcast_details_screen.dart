@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:yogicast/core/models/podcast.dart';
 import 'package:yogicast/features/podcast/providers/podcast_provider.dart';
+import 'package:yogicast/shared/widgets/audio_player.dart';
 import 'package:yogicast/shared/widgets/loading_overlay.dart';
 
 class PodcastDetailsScreen extends StatefulWidget {
@@ -87,6 +88,15 @@ class _PodcastDetailsScreenState extends State<PodcastDetailsScreen> {
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
               ),
+              if (segment.audioPath != null && segment.audioPath!.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                  child: AudioPlayerWidget(
+                    audioPath: segment.audioPath!,
+                    title: 'Segment ${index + 1} Audio',
+                  ),
+                ),
+              const SizedBox(height: 8),
             ],
           ),
         );
@@ -179,6 +189,20 @@ class _PodcastDetailsScreenState extends State<PodcastDetailsScreen> {
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Podcast Details'),
+          actions: [
+            if (widget.podcast.status == PodcastStatus.ready)
+              IconButton(
+                icon: const Icon(Icons.share),
+                onPressed: () {
+                  // TODO: Implement sharing functionality
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Sharing coming soon!'),
+                    ),
+                  );
+                },
+              ),
+          ],
         ),
         body: SingleChildScrollView(
           padding: const EdgeInsets.all(16),

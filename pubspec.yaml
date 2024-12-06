@@ -28,6 +28,9 @@ dependencies:
   equatable: ^2.0.5
   logger: ^2.0.2+1
   uuid: ^4.3.3
+  # Audio playback
+  audio_session: ^0.1.18
+  rxdart: ^0.27.7
 
 dev_dependencies:
   flutter_test:
