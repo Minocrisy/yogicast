@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:yogicast/core/models/podcast.dart';
 import 'package:yogicast/features/podcast/providers/podcast_provider.dart';
+import 'package:yogicast/features/settings/providers/settings_provider.dart';
 import 'package:yogicast/shared/widgets/loading_overlay.dart';
 import 'package:yogicast/shared/widgets/audio_player.dart';
 
@@ -22,6 +23,19 @@ class _PodcastDetailsScreenState extends State<PodcastDetailsScreen> {
   String _generationStage = '';
   String _generationMessage = '';
   int? _currentPlayingIndex;
+
+  void _handleSegmentComplete(BuildContext context, int currentIndex) {
+    final settings = context.read<SettingsProvider>();
+    if (settings.autoPlay && currentIndex < widget.podcast.segments.length - 1) {
+      setState(() {
+        _currentPlayingIndex = currentIndex + 1;
+      });
+    } else {
+      setState(() {
+        _currentPlayingIndex = null;
+      });
+    }
+  }
 
   Widget _buildStatusIndicator(PodcastStatus status) {
     Color color;
@@ -64,6 +78,8 @@ class _PodcastDetailsScreenState extends State<PodcastDetailsScreen> {
       itemCount: widget.podcast.segments.length,
       itemBuilder: (context, index) {
         final segment = widget.podcast.segments[index];
+        final isPlaying = _currentPlayingIndex == index;
+
         return Card(
           margin: const EdgeInsets.symmetric(vertical: 8),
           child: Column(
@@ -96,22 +112,24 @@ class _PodcastDetailsScreenState extends State<PodcastDetailsScreen> {
               if (segment.audioPath != null && segment.audioPath!.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.all(8.0),
-                  child: AudioPlayerWidget(
-                    audioUrl: segment.audioPath!,
-                    title: 'Segment ${index + 1} Audio',
-                    onComplete: () {
-                      // Auto-play next segment if available
-                      if (_currentPlayingIndex == index &&
-                          index < widget.podcast.segments.length - 1) {
-                        setState(() {
-                          _currentPlayingIndex = index + 1;
-                        });
-                      } else {
-                        setState(() {
-                          _currentPlayingIndex = null;
-                        });
-                      }
-                    },
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 300),
+                    child: isPlaying
+                        ? AudioPlayerWidget(
+                            key: ValueKey(segment.id),
+                            audioUrl: segment.audioPath!,
+                            title: 'Segment ${index + 1} Audio',
+                            onComplete: () => _handleSegmentComplete(context, index),
+                          )
+                        : OutlinedButton.icon(
+                            icon: const Icon(Icons.play_arrow),
+                            label: const Text('Play Audio'),
+                            onPressed: () {
+                              setState(() {
+                                _currentPlayingIndex = index;
+                              });
+                            },
+                          ),
                   ),
                 ),
             ],
