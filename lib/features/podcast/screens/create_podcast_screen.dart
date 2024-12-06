@@ -17,6 +17,7 @@ class _CreatePodcastScreenState extends State<CreatePodcastScreen> {
   final _descriptionController = TextEditingController();
   final _contentController = TextEditingController();
   bool _isLoading = false;
+  bool _enableVideo = true;
 
   @override
   void dispose() {
@@ -41,6 +42,7 @@ class _CreatePodcastScreenState extends State<CreatePodcastScreen> {
             PodcastSegment(
               id: const Uuid().v4(),
               content: _contentController.text,
+              preferredFormat: _enableVideo ? MediaFormat.video : MediaFormat.image,
             ),
           ],
           createdAt: DateTime.now(),
@@ -107,7 +109,7 @@ class _CreatePodcastScreenState extends State<CreatePodcastScreen> {
                 controller: _descriptionController,
                 decoration: const InputDecoration(
                   labelText: 'Description',
-                  hintText: 'Enter a description for your podcast',
+                  hintText: 'Enter a description that will guide visual generation',
                   border: OutlineInputBorder(),
                 ),
                 maxLines: 3,
@@ -123,15 +125,32 @@ class _CreatePodcastScreenState extends State<CreatePodcastScreen> {
                 controller: _contentController,
                 decoration: const InputDecoration(
                   labelText: 'Content',
-                  hintText: 'Enter the content or topic for your podcast',
+                  hintText: 'Enter descriptive content that can be visualized',
                   border: OutlineInputBorder(),
+                  helperText: 'Include vivid descriptions for better visual generation',
                 ),
                 maxLines: 5,
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'Please enter content';
                   }
+                  if (value.length < 50) {
+                    return 'Please enter at least 50 characters for better results';
+                  }
                   return null;
+                },
+              ),
+              const SizedBox(height: 16),
+              SwitchListTile(
+                title: const Text('Enable Video Generation'),
+                subtitle: const Text(
+                  'Generate video content instead of static images',
+                ),
+                value: _enableVideo,
+                onChanged: (value) {
+                  setState(() {
+                    _enableVideo = value;
+                  });
                 },
               ),
               const SizedBox(height: 24),
@@ -151,6 +170,32 @@ class _CreatePodcastScreenState extends State<CreatePodcastScreen> {
                   padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
               ),
+              if (_enableVideo) ...[
+                const SizedBox(height: 16),
+                const Card(
+                  child: Padding(
+                    padding: EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Tips for Better Video Generation',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                        SizedBox(height: 8),
+                        Text('• Use descriptive language about scenes and actions'),
+                        Text('• Include details about movement and transitions'),
+                        Text('• Describe visual elements like colors and lighting'),
+                        Text('• Keep descriptions focused and coherent'),
+                        Text('• Avoid abstract or non-visual concepts'),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
         ),
