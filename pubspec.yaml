@@ -19,6 +19,7 @@ dependencies:
   just_audio: ^0.9.36
   audio_session: ^0.1.18
   google_fonts: ^6.1.0
+  share_plus: ^7.2.1
 
 dev_dependencies:
   flutter_test:

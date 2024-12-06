@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:yogicast/core/models/podcast.dart';
+import 'package:yogicast/core/services/share_service.dart';
 import 'package:yogicast/features/podcast/providers/podcast_provider.dart';
 import 'package:yogicast/features/settings/providers/settings_provider.dart';
 import 'package:yogicast/shared/widgets/loading_overlay.dart';
@@ -23,6 +24,7 @@ class _PodcastDetailsScreenState extends State<PodcastDetailsScreen> {
   String _generationStage = '';
   String _generationMessage = '';
   int? _currentPlayingIndex;
+  final _shareService = ShareService();
 
   void _handleSegmentComplete(BuildContext context, int currentIndex) {
     final settings = context.read<SettingsProvider>();
@@ -34,6 +36,57 @@ class _PodcastDetailsScreenState extends State<PodcastDetailsScreen> {
       setState(() {
         _currentPlayingIndex = null;
       });
+    }
+  }
+
+  Future<void> _handleShare() async {
+    try {
+      await showModalBottomSheet(
+        context: context,
+        builder: (context) => SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.share),
+                title: const Text('Share Summary'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  await _shareService.sharePodcast(widget.podcast);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.code),
+                title: const Text('Export as JSON'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  await _shareService.sharePodcastAsJson(widget.podcast);
+                },
+              ),
+              if (widget.podcast.segments.length == 1)
+                ListTile(
+                  leading: const Icon(Icons.segment),
+                  title: const Text('Share Segment'),
+                  onTap: () async {
+                    Navigator.pop(context);
+                    await _shareService.sharePodcastSegment(
+                      widget.podcast.segments.first,
+                      widget.podcast.title,
+                    );
+                  },
+                ),
+            ],
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error sharing podcast: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -87,7 +140,20 @@ class _PodcastDetailsScreenState extends State<PodcastDetailsScreen> {
             children: [
               ListTile(
                 title: Text('Segment ${index + 1}'),
-                trailing: _buildSegmentStatus(segment.status),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (segment.status == SegmentStatus.complete)
+                      IconButton(
+                        icon: const Icon(Icons.share),
+                        onPressed: () => _shareService.sharePodcastSegment(
+                          segment,
+                          widget.podcast.title,
+                        ),
+                      ),
+                    _buildSegmentStatus(segment.status),
+                  ],
+                ),
               ),
               if (segment.visualPath != null && segment.visualPath!.isNotEmpty)
                 Padding(
@@ -228,13 +294,7 @@ class _PodcastDetailsScreenState extends State<PodcastDetailsScreen> {
             if (widget.podcast.status == PodcastStatus.ready)
               IconButton(
                 icon: const Icon(Icons.share),
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Sharing coming soon!'),
-                    ),
-                  );
-                },
+                onPressed: _handleShare,
               ),
           ],
         ),
