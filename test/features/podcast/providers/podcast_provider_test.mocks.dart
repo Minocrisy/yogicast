@@ -163,6 +163,53 @@ class MockReplicateService extends _i1.Mock implements _i5.ReplicateService {
       ) as _i3.Future<String>);
 
   @override
+  _i3.Future<String> generateVideo({
+    required String? prompt,
+    String? imageUrl,
+    int? duration = 4,
+    int? fps = 24,
+  }) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #generateVideo,
+          [],
+          {
+            #prompt: prompt,
+            #imageUrl: imageUrl,
+            #duration: duration,
+            #fps: fps,
+          },
+        ),
+        returnValue: _i3.Future<String>.value(_i4.dummyValue<String>(
+          this,
+          Invocation.method(
+            #generateVideo,
+            [],
+            {
+              #prompt: prompt,
+              #imageUrl: imageUrl,
+              #duration: duration,
+              #fps: fps,
+            },
+          ),
+        )),
+        returnValueForMissingStub:
+            _i3.Future<String>.value(_i4.dummyValue<String>(
+          this,
+          Invocation.method(
+            #generateVideo,
+            [],
+            {
+              #prompt: prompt,
+              #imageUrl: imageUrl,
+              #duration: duration,
+              #fps: fps,
+            },
+          ),
+        )),
+      ) as _i3.Future<String>);
+
+  @override
   _i3.Future<String> generateAudio({
     required String? text,
     String? voiceId,
@@ -284,12 +331,70 @@ class MockReplicateService extends _i1.Mock implements _i5.ReplicateService {
       ) as _i3.Future<String>);
 
   @override
+  _i3.Future<String> generateSegmentVideo({
+    required String? content,
+    required String? description,
+    String? imageUrl,
+  }) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #generateSegmentVideo,
+          [],
+          {
+            #content: content,
+            #description: description,
+            #imageUrl: imageUrl,
+          },
+        ),
+        returnValue: _i3.Future<String>.value(_i4.dummyValue<String>(
+          this,
+          Invocation.method(
+            #generateSegmentVideo,
+            [],
+            {
+              #content: content,
+              #description: description,
+              #imageUrl: imageUrl,
+            },
+          ),
+        )),
+        returnValueForMissingStub:
+            _i3.Future<String>.value(_i4.dummyValue<String>(
+          this,
+          Invocation.method(
+            #generateSegmentVideo,
+            [],
+            {
+              #content: content,
+              #description: description,
+              #imageUrl: imageUrl,
+            },
+          ),
+        )),
+      ) as _i3.Future<String>);
+
+  @override
   _i3.Future<List<String>> generateSegmentVisuals(
           List<String>? segmentContents) =>
       (super.noSuchMethod(
         Invocation.method(
           #generateSegmentVisuals,
           [segmentContents],
+        ),
+        returnValue: _i3.Future<List<String>>.value(<String>[]),
+        returnValueForMissingStub: _i3.Future<List<String>>.value(<String>[]),
+      ) as _i3.Future<List<String>>);
+
+  @override
+  _i3.Future<List<String>> generateSegmentVideos(
+    List<String>? segmentContents, {
+    List<String>? imageUrls,
+  }) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #generateSegmentVideos,
+          [segmentContents],
+          {#imageUrls: imageUrls},
         ),
         returnValue: _i3.Future<List<String>>.value(<String>[]),
         returnValueForMissingStub: _i3.Future<List<String>>.value(<String>[]),

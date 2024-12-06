@@ -44,8 +44,12 @@ PodcastSegment _$PodcastSegmentFromJson(Map<String, dynamic> json) =>
       content: json['content'] as String,
       audioPath: json['audioPath'] as String?,
       visualPath: json['visualPath'] as String?,
+      videoPath: json['videoPath'] as String?,
       status: $enumDecodeNullable(_$SegmentStatusEnumMap, json['status']) ??
           SegmentStatus.pending,
+      preferredFormat:
+          $enumDecodeNullable(_$MediaFormatEnumMap, json['preferredFormat']) ??
+              MediaFormat.image,
     );
 
 Map<String, dynamic> _$PodcastSegmentToJson(PodcastSegment instance) =>
@@ -54,13 +58,21 @@ Map<String, dynamic> _$PodcastSegmentToJson(PodcastSegment instance) =>
       'content': instance.content,
       'audioPath': instance.audioPath,
       'visualPath': instance.visualPath,
+      'videoPath': instance.videoPath,
       'status': _$SegmentStatusEnumMap[instance.status]!,
+      'preferredFormat': _$MediaFormatEnumMap[instance.preferredFormat]!,
     };
 
 const _$SegmentStatusEnumMap = {
   SegmentStatus.pending: 'pending',
   SegmentStatus.generatingAudio: 'generatingAudio',
   SegmentStatus.generatingVisual: 'generatingVisual',
+  SegmentStatus.generatingVideo: 'generatingVideo',
   SegmentStatus.complete: 'complete',
   SegmentStatus.error: 'error',
+};
+
+const _$MediaFormatEnumMap = {
+  MediaFormat.image: 'image',
+  MediaFormat.video: 'video',
 };
