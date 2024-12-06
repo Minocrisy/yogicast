@@ -51,13 +51,61 @@ class ReplicateService {
     }
   }
 
+  Future<String> generateVideo({
+    required String prompt,
+    String? imageUrl,
+    int duration = 4,
+    int fps = 24,
+  }) async {
+    try {
+      // Using Hunyuan Video model
+      const model = 'alibaba-pai/hunyuan-video:7a236f267ccd03d2e516a5c55d99b06d0e67b0f9c78aec8b8594e1fa4c3b6ad3';
+      
+      final input = {
+        'prompt': prompt,
+        'duration': duration,
+        'fps': fps,
+        'guidance_scale': 7.5,
+        'num_inference_steps': 50,
+      };
+
+      if (imageUrl != null) {
+        input['image'] = imageUrl;
+      }
+
+      final response = await _apiService.createPrediction(
+        model: model,
+        input: input,
+      );
+
+      final predictionId = response['id'] as String;
+
+      while (true) {
+        await Future.delayed(const Duration(seconds: 2));
+        final status = await _apiService.getPrediction(predictionId);
+        
+        if (status['status'] == 'succeeded') {
+          final outputs = status['output'] as List;
+          if (outputs.isEmpty) {
+            throw Exception('No video was generated');
+          }
+          return outputs.first as String;
+        } else if (status['status'] == 'failed') {
+          throw Exception('Video generation failed: ${status['error']}');
+        }
+      }
+    } catch (e) {
+      throw Exception('Failed to generate video: $e');
+    }
+  }
+
   Future<String> generateAudio({
     required String text,
     String? voiceId,
     double? speed,
   }) async {
     try {
-      // Using Coqui TTS model for high-quality speech synthesis
+      // Using Coqui TTS model
       const model = 'cjwbw/coqui-tts:d6ef0e2e6ef7c7f42d5a9a7557399cb53c180a0a1a49ef90be48112d0f0c1ce1';
       
       final response = await _apiService.createPrediction(
@@ -73,7 +121,6 @@ class ReplicateService {
 
       final predictionId = response['id'] as String;
 
-      // Poll for the result
       while (true) {
         await Future.delayed(const Duration(seconds: 2));
         final status = await _apiService.getPrediction(predictionId);
@@ -132,6 +179,26 @@ Use a style that's both professional and creative.
     );
   }
 
+  Future<String> generateSegmentVideo({
+    required String content,
+    required String description,
+    String? imageUrl,
+  }) async {
+    final prompt = '''
+Create an engaging video for a podcast segment about: $description
+The video should be dynamic and visually interesting.
+Include subtle motion and transitions.
+Maintain a professional and polished look.
+''';
+
+    return generateVideo(
+      prompt: prompt,
+      imageUrl: imageUrl,
+      duration: 10, // 10 seconds per segment
+      fps: 24,
+    );
+  }
+
   Future<List<String>> generateSegmentVisuals(List<String> segmentContents) async {
     final List<String> visualUrls = [];
 
@@ -154,6 +221,32 @@ Use a style that's both professional and creative.
     }
 
     return visualUrls;
+  }
+
+  Future<List<String>> generateSegmentVideos(List<String> segmentContents, {List<String>? imageUrls}) async {
+    final List<String> videoUrls = [];
+
+    for (var i = 0; i < segmentContents.length; i++) {
+      try {
+        final content = segmentContents[i];
+        final description = content.length > 200 
+            ? '${content.substring(0, 200)}...' 
+            : content;
+            
+        final videoUrl = await generateSegmentVideo(
+          content: content,
+          description: description,
+          imageUrl: imageUrls?[i],
+        );
+        
+        videoUrls.add(videoUrl);
+      } catch (e) {
+        // If one video fails, continue with the others but add an empty string
+        videoUrls.add(''); // Empty string indicates failed generation
+      }
+    }
+
+    return videoUrls;
   }
 
   Future<List<String>> generateSegmentAudio(List<String> segments) async {

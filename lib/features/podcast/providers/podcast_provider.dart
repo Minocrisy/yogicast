@@ -11,7 +11,6 @@ class PodcastProvider extends ChangeNotifier {
   final CacheService _cacheService;
   final List<Podcast> _podcasts = [];
   Podcast? _currentPodcast;
-  bool _isInitialized = false;
 
   PodcastProvider(
     this._groqService,
@@ -23,16 +22,10 @@ class PodcastProvider extends ChangeNotifier {
   Podcast? get currentPodcast => _currentPodcast;
 
   Future<void> initialize() async {
-    if (_isInitialized) return;
-
-    try {
+    if (_podcasts.isEmpty) {
       final cachedPodcasts = await _cacheService.getCachedPodcasts();
       _podcasts.addAll(cachedPodcasts);
       notifyListeners();
-    } catch (e) {
-      debugPrint('Error loading cached podcasts: $e');
-    } finally {
-      _isInitialized = true;
     }
   }
 
@@ -40,12 +33,27 @@ class PodcastProvider extends ChangeNotifier {
     try {
       _podcasts.add(podcast);
       _currentPodcast = podcast;
-      notifyListeners();
-
-      // Cache the new podcast
       await _cacheService.cachePodcast(podcast);
+      notifyListeners();
     } catch (e) {
       debugPrint('Error creating podcast: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> updatePodcast(Podcast podcast) async {
+    try {
+      final index = _podcasts.indexWhere((p) => p.id == podcast.id);
+      if (index != -1) {
+        _podcasts[index] = podcast;
+        if (_currentPodcast?.id == podcast.id) {
+          _currentPodcast = podcast;
+        }
+        await _cacheService.cachePodcast(podcast);
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('Error updating podcast: $e');
       rethrow;
     }
   }
@@ -57,7 +65,7 @@ class PodcastProvider extends ChangeNotifier {
         status: PodcastStatus.generating,
         lastModified: DateTime.now(),
       );
-      _updatePodcast(updatedPodcast);
+      await updatePodcast(updatedPodcast);
 
       // Generate main script
       final mainScript = await _groqService.generatePodcastScript(
@@ -69,7 +77,7 @@ class PodcastProvider extends ChangeNotifier {
       // Generate individual segments
       final segmentScripts = await _groqService.generateSegmentScripts(
         mainScript: mainScript,
-        numberOfSegments: 3, // We can make this configurable later
+        numberOfSegments: 3,
       );
 
       // Create new segments with generated content
@@ -89,20 +97,23 @@ class PodcastProvider extends ChangeNotifier {
         segments: newSegments,
         lastModified: DateTime.now(),
       );
-      _updatePodcast(updatedPodcast);
+      await updatePodcast(updatedPodcast);
 
       // Generate audio for each segment
       await generateAudio(updatedPodcast);
 
       // Generate visuals for each segment
       await generateVisuals(updatedPodcast);
+
+      // Generate videos for each segment
+      await generateVideos(updatedPodcast);
     } catch (e) {
       debugPrint('Error generating podcast content: $e');
       final errorPodcast = podcast.copyWith(
         status: PodcastStatus.error,
         lastModified: DateTime.now(),
       );
-      _updatePodcast(errorPodcast);
+      await updatePodcast(errorPodcast);
       rethrow;
     }
   }
@@ -113,7 +124,7 @@ class PodcastProvider extends ChangeNotifier {
         status: PodcastStatus.generating,
         lastModified: DateTime.now(),
       );
-      _updatePodcast(updatedPodcast);
+      await updatePodcast(updatedPodcast);
 
       // Update segments to show audio generation status
       var segments = podcast.segments.map((segment) => 
@@ -124,7 +135,7 @@ class PodcastProvider extends ChangeNotifier {
         segments: segments,
         lastModified: DateTime.now(),
       );
-      _updatePodcast(updatedPodcast);
+      await updatePodcast(updatedPodcast);
 
       // Generate audio for each segment
       final audioUrls = await _replicateService.generateSegmentAudio(
@@ -150,14 +161,14 @@ class PodcastProvider extends ChangeNotifier {
           : PodcastStatus.ready,
         lastModified: DateTime.now(),
       );
-      _updatePodcast(updatedPodcast);
+      await updatePodcast(updatedPodcast);
     } catch (e) {
       debugPrint('Error generating audio: $e');
       final errorPodcast = podcast.copyWith(
         status: PodcastStatus.error,
         lastModified: DateTime.now(),
       );
-      _updatePodcast(errorPodcast);
+      await updatePodcast(errorPodcast);
       rethrow;
     }
   }
@@ -168,7 +179,7 @@ class PodcastProvider extends ChangeNotifier {
         status: PodcastStatus.generating,
         lastModified: DateTime.now(),
       );
-      _updatePodcast(updatedPodcast);
+      await updatePodcast(updatedPodcast);
 
       // Update segments to show visual generation status
       var segments = podcast.segments.map((segment) =>
@@ -179,7 +190,7 @@ class PodcastProvider extends ChangeNotifier {
         segments: segments,
         lastModified: DateTime.now(),
       );
-      _updatePodcast(updatedPodcast);
+      await updatePodcast(updatedPodcast);
 
       // Generate thumbnail for the podcast
       final thumbnailUrl = await _replicateService.generatePodcastThumbnail(
@@ -211,31 +222,77 @@ class PodcastProvider extends ChangeNotifier {
           : PodcastStatus.ready,
         lastModified: DateTime.now(),
       );
-      _updatePodcast(updatedPodcast);
+      await updatePodcast(updatedPodcast);
     } catch (e) {
       debugPrint('Error generating visuals: $e');
       final errorPodcast = podcast.copyWith(
         status: PodcastStatus.error,
         lastModified: DateTime.now(),
       );
-      _updatePodcast(errorPodcast);
+      await updatePodcast(errorPodcast);
       rethrow;
     }
   }
 
-  void _updatePodcast(Podcast podcast) {
-    final index = _podcasts.indexWhere((p) => p.id == podcast.id);
-    if (index != -1) {
-      _podcasts[index] = podcast;
-      if (_currentPodcast?.id == podcast.id) {
-        _currentPodcast = podcast;
-      }
-      notifyListeners();
+  Future<void> generateVideos(Podcast podcast) async {
+    try {
+      var updatedPodcast = podcast.copyWith(
+        status: PodcastStatus.generating,
+        lastModified: DateTime.now(),
+      );
+      await updatePodcast(updatedPodcast);
 
-      // Cache the updated podcast
-      _cacheService.cachePodcast(podcast).catchError((e) {
-        debugPrint('Error caching podcast: $e');
+      // Update segments to show video generation status
+      var segments = podcast.segments.map((segment) =>
+        segment.copyWith(status: SegmentStatus.generatingVideo)
+      ).toList();
+      
+      updatedPodcast = updatedPodcast.copyWith(
+        segments: segments,
+        lastModified: DateTime.now(),
+      );
+      await updatePodcast(updatedPodcast);
+
+      // Generate videos for each segment
+      final validImageUrls = segments
+          .map((s) => s.visualPath)
+          .where((url) => url != null)
+          .map((url) => url!)
+          .toList();
+
+      final videoUrls = await _replicateService.generateSegmentVideos(
+        segments.map((s) => s.content).toList(),
+        imageUrls: validImageUrls,
+      );
+
+      // Update segments with video paths
+      segments = List.generate(segments.length, (index) {
+        final segment = segments[index];
+        final videoUrl = videoUrls[index];
+        
+        return segment.copyWith(
+          videoPath: videoUrl,
+          status: videoUrl.isEmpty ? SegmentStatus.error : SegmentStatus.complete,
+        );
       });
+
+      // Update podcast with new segments and status
+      updatedPodcast = updatedPodcast.copyWith(
+        segments: segments,
+        status: segments.any((s) => s.status == SegmentStatus.error)
+          ? PodcastStatus.error
+          : PodcastStatus.ready,
+        lastModified: DateTime.now(),
+      );
+      await updatePodcast(updatedPodcast);
+    } catch (e) {
+      debugPrint('Error generating videos: $e');
+      final errorPodcast = podcast.copyWith(
+        status: PodcastStatus.error,
+        lastModified: DateTime.now(),
+      );
+      await updatePodcast(errorPodcast);
+      rethrow;
     }
   }
 }

@@ -62,14 +62,18 @@ class PodcastSegment extends Equatable {
   final String content;
   final String? audioPath;
   final String? visualPath;
+  final String? videoPath;
   final SegmentStatus status;
+  final MediaFormat preferredFormat;
 
   const PodcastSegment({
     required this.id,
     required this.content,
     this.audioPath,
     this.visualPath,
+    this.videoPath,
     this.status = SegmentStatus.pending,
+    this.preferredFormat = MediaFormat.image,
   });
 
   factory PodcastSegment.fromJson(Map<String, dynamic> json) =>
@@ -82,23 +86,32 @@ class PodcastSegment extends Equatable {
     content,
     audioPath,
     visualPath,
+    videoPath,
     status,
+    preferredFormat,
   ];
 
   PodcastSegment copyWith({
     String? content,
     String? audioPath,
     String? visualPath,
+    String? videoPath,
     SegmentStatus? status,
+    MediaFormat? preferredFormat,
   }) {
     return PodcastSegment(
       id: id,
       content: content ?? this.content,
       audioPath: audioPath ?? this.audioPath,
       visualPath: visualPath ?? this.visualPath,
+      videoPath: videoPath ?? this.videoPath,
       status: status ?? this.status,
+      preferredFormat: preferredFormat ?? this.preferredFormat,
     );
   }
+
+  bool get hasVisualContent => visualPath != null || videoPath != null;
+  String? get activeVisualPath => preferredFormat == MediaFormat.video ? videoPath : visualPath;
 }
 
 enum PodcastStatus {
@@ -112,6 +125,12 @@ enum SegmentStatus {
   pending,
   generatingAudio,
   generatingVisual,
+  generatingVideo,
   complete,
   error,
+}
+
+enum MediaFormat {
+  image,
+  video,
 }

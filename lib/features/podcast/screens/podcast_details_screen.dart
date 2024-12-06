@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:video_player/video_player.dart';
 import 'package:yogicast/core/models/podcast.dart';
 import 'package:yogicast/core/services/share_service.dart';
 import 'package:yogicast/features/podcast/providers/podcast_provider.dart';
@@ -25,6 +26,26 @@ class _PodcastDetailsScreenState extends State<PodcastDetailsScreen> {
   String _generationMessage = '';
   int? _currentPlayingIndex;
   final _shareService = ShareService();
+  final Map<String, VideoPlayerController> _videoControllers = {};
+
+  @override
+  void dispose() {
+    for (var controller in _videoControllers.values) {
+      controller.dispose();
+    }
+    super.dispose();
+  }
+
+  Future<VideoPlayerController> _getVideoController(String url) async {
+    if (_videoControllers.containsKey(url)) {
+      return _videoControllers[url]!;
+    }
+
+    final controller = VideoPlayerController.networkUrl(Uri.parse(url));
+    await controller.initialize();
+    _videoControllers[url] = controller;
+    return controller;
+  }
 
   void _handleSegmentComplete(BuildContext context, int currentIndex) {
     final settings = context.read<SettingsProvider>();
@@ -36,57 +57,6 @@ class _PodcastDetailsScreenState extends State<PodcastDetailsScreen> {
       setState(() {
         _currentPlayingIndex = null;
       });
-    }
-  }
-
-  Future<void> _handleShare() async {
-    try {
-      await showModalBottomSheet(
-        context: context,
-        builder: (context) => SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const Icon(Icons.share),
-                title: const Text('Share Summary'),
-                onTap: () async {
-                  Navigator.pop(context);
-                  await _shareService.sharePodcast(widget.podcast);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.code),
-                title: const Text('Export as JSON'),
-                onTap: () async {
-                  Navigator.pop(context);
-                  await _shareService.sharePodcastAsJson(widget.podcast);
-                },
-              ),
-              if (widget.podcast.segments.length == 1)
-                ListTile(
-                  leading: const Icon(Icons.segment),
-                  title: const Text('Share Segment'),
-                  onTap: () async {
-                    Navigator.pop(context);
-                    await _shareService.sharePodcastSegment(
-                      widget.podcast.segments.first,
-                      widget.podcast.title,
-                    );
-                  },
-                ),
-            ],
-          ),
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error sharing podcast: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
     }
   }
 
@@ -151,21 +121,77 @@ class _PodcastDetailsScreenState extends State<PodcastDetailsScreen> {
                           widget.podcast.title,
                         ),
                       ),
+                    if (segment.hasVisualContent)
+                      IconButton(
+                        icon: Icon(segment.preferredFormat == MediaFormat.video 
+                          ? Icons.video_library 
+                          : Icons.image
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            final newFormat = segment.preferredFormat == MediaFormat.video
+                                ? MediaFormat.image
+                                : MediaFormat.video;
+                            final index = widget.podcast.segments.indexOf(segment);
+                            final segments = List<PodcastSegment>.from(widget.podcast.segments);
+                            segments[index] = segment.copyWith(preferredFormat: newFormat);
+                            context.read<PodcastProvider>().updatePodcast(
+                              widget.podcast.copyWith(segments: segments),
+                            );
+                          });
+                        },
+                      ),
                     _buildSegmentStatus(segment.status),
                   ],
                 ),
               ),
-              if (segment.visualPath != null && segment.visualPath!.isNotEmpty)
+              if (segment.hasVisualContent)
                 Padding(
                   padding: const EdgeInsets.all(8.0),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(8),
-                    child: Image.network(
-                      segment.visualPath!,
-                      height: 200,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                    ),
+                    child: segment.preferredFormat == MediaFormat.video && segment.videoPath != null
+                        ? FutureBuilder<VideoPlayerController>(
+                            future: _getVideoController(segment.videoPath!),
+                            builder: (context, snapshot) {
+                              if (!snapshot.hasData) {
+                                return const Center(
+                                  child: CircularProgressIndicator(),
+                                );
+                              }
+                              
+                              final controller = snapshot.data!;
+                              return AspectRatio(
+                                aspectRatio: controller.value.aspectRatio,
+                                child: Stack(
+                                  alignment: Alignment.center,
+                                  children: [
+                                    VideoPlayer(controller),
+                                    IconButton(
+                                      icon: Icon(
+                                        controller.value.isPlaying
+                                            ? Icons.pause
+                                            : Icons.play_arrow,
+                                      ),
+                                      onPressed: () {
+                                        setState(() {
+                                          controller.value.isPlaying
+                                              ? controller.pause()
+                                              : controller.play();
+                                        });
+                                      },
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          )
+                        : Image.network(
+                            segment.visualPath!,
+                            height: 200,
+                            width: double.infinity,
+                            fit: BoxFit.cover,
+                          ),
                   ),
                 ),
               Padding(
@@ -223,6 +249,10 @@ class _PodcastDetailsScreenState extends State<PodcastDetailsScreen> {
         color = Colors.purple;
         icon = Icons.image;
         tooltip = 'Generating Visual';
+      case SegmentStatus.generatingVideo:
+        color = Colors.blue;
+        icon = Icons.movie_creation;
+        tooltip = 'Generating Video';
       case SegmentStatus.complete:
         color = Colors.green;
         icon = Icons.check_circle;
@@ -279,6 +309,45 @@ class _PodcastDetailsScreenState extends State<PodcastDetailsScreen> {
           _isGenerating = false;
         });
       }
+    }
+  }
+
+  Future<void> _handleShare() async {
+    try {
+      await showModalBottomSheet(
+        context: context,
+        builder: (context) => SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.share),
+                title: const Text('Share Summary'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  await _shareService.sharePodcast(widget.podcast);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.code),
+                title: const Text('Export as JSON'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  await _shareService.sharePodcastAsJson(widget.podcast);
+                },
+              ),
+            ],
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error sharing podcast: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
