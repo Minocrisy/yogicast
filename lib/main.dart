@@ -1,16 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:yogicast/config/app_config.dart';
+import 'package:yogicast/config/env.dart';
 import 'package:yogicast/core/models/podcast.dart';
 import 'package:yogicast/core/services/groq_service.dart';
 import 'package:yogicast/core/services/replicate_service.dart';
+import 'package:yogicast/core/services/cache_service.dart';
 import 'package:yogicast/features/podcast/providers/podcast_provider.dart';
 import 'package:yogicast/features/podcast/screens/create_podcast_screen.dart';
 import 'package:yogicast/features/podcast/screens/podcast_details_screen.dart';
 import 'package:yogicast/shared/constants/app_theme.dart';
 import 'package:yogicast/core/services/api_service.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // Validate environment variables
+  Env.validateEnv();
+
+  // Initialize SharedPreferences
+  final prefs = await SharedPreferences.getInstance();
+
   runApp(
     MultiProvider(
       providers: [
@@ -26,11 +37,15 @@ void main() {
         Provider<ReplicateService>(
           create: (context) => ReplicateService(context.read<ReplicateApiService>()),
         ),
+        Provider<CacheService>(
+          create: (_) => CacheService(prefs),
+        ),
         ChangeNotifierProvider(
           create: (context) => PodcastProvider(
             context.read<GroqService>(),
             context.read<ReplicateService>(),
-          ),
+            context.read<CacheService>(),
+          )..initialize(),
         ),
       ],
       child: const YogicastApp(),

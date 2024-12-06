@@ -1,44 +1,28 @@
 name: yogicast
-description: "A Flutter application for AI-powered podcast creation with visual elements."
+description: AI-powered podcast creation platform
 publish_to: 'none'
 version: 1.0.0+1
 
 environment:
-  sdk: ^3.5.3
+  sdk: '>=3.0.0 <4.0.0'
 
 dependencies:
   flutter:
     sdk: flutter
-  cupertino_icons: ^1.0.8
-  # State management
-  provider: ^6.1.1
-  # API and networking
-  http: ^1.2.0
-  dio: ^5.4.0
-  # Audio handling
-  just_audio: ^0.9.36
-  # Storage and file management
-  path_provider: ^2.1.2
-  shared_preferences: ^2.2.2
-  # UI components
-  flutter_markdown: ^0.6.18
-  google_fonts: ^6.1.0
-  # Utils
-  json_annotation: ^4.8.1
+  cupertino_icons: ^1.0.2
+  provider: ^6.0.5
+  dio: ^5.3.2
+  uuid: ^4.0.0
   equatable: ^2.0.5
-  logger: ^2.0.2+1
-  uuid: ^4.3.3
+  json_annotation: ^4.8.1
+  shared_preferences: ^2.2.1
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^4.0.0
+  flutter_lints: ^2.0.0
+  build_runner: ^2.4.6
   json_serializable: ^6.7.1
-  build_runner: ^2.4.8
 
 flutter:
   uses-material-design: true
-
-  assets:
-    - assets/images/
-    - assets/icons/

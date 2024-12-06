@@ -1,13 +1,17 @@
 import 'package:dio/dio.dart';
 import 'package:yogicast/config/app_config.dart';
+import 'package:yogicast/config/env.dart';
 
 abstract class ApiService {
   final Dio _dio;
   
-  ApiService(String baseUrl) : _dio = Dio(BaseOptions(
+  ApiService(String baseUrl, String apiKey) : _dio = Dio(BaseOptions(
     baseUrl: baseUrl,
     connectTimeout: const Duration(seconds: 30),
     receiveTimeout: const Duration(seconds: 30),
+    headers: {
+      'Authorization': 'Bearer $apiKey',
+    },
   ));
 
   Future<Response> get(String path, {Map<String, dynamic>? queryParameters}) async {
@@ -37,10 +41,14 @@ abstract class ApiService {
         case DioExceptionType.receiveTimeout:
           return TimeoutException();
         case DioExceptionType.badResponse:
-          return ApiException(
-            error.response?.statusCode ?? 500,
-            error.response?.data?['message'] ?? 'Unknown error occurred',
-          );
+          final statusCode = error.response?.statusCode ?? 500;
+          final message = error.response?.data?['message'] ?? 'Unknown error occurred';
+          
+          if (statusCode == 401) {
+            return AuthenticationException();
+          }
+          
+          return ApiException(statusCode, message);
         default:
           return NetworkException();
       }
@@ -50,7 +58,10 @@ abstract class ApiService {
 }
 
 class ReplicateApiService extends ApiService {
-  ReplicateApiService() : super(AppConfig.replicateApiBaseUrl);
+  ReplicateApiService() : super(
+    AppConfig.replicateApiBaseUrl,
+    Env.replicateApiKey,
+  );
 
   Future<Map<String, dynamic>> createPrediction({
     required String model,
@@ -70,7 +81,10 @@ class ReplicateApiService extends ApiService {
 }
 
 class GroqApiService extends ApiService {
-  GroqApiService() : super(AppConfig.groqApiBaseUrl);
+  GroqApiService() : super(
+    AppConfig.groqApiBaseUrl,
+    Env.groqApiKey,
+  );
 
   Future<Map<String, dynamic>> generateText({
     required String prompt,
@@ -99,6 +113,11 @@ class ApiException implements Exception {
 
   @override
   String toString() => 'ApiException: [$statusCode] $message';
+}
+
+class AuthenticationException implements Exception {
+  @override
+  String toString() => 'AuthenticationException: Invalid or missing API key';
 }
 
 class NetworkException implements Exception {

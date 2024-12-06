@@ -3,23 +3,47 @@ import 'package:uuid/uuid.dart';
 import 'package:yogicast/core/models/podcast.dart';
 import 'package:yogicast/core/services/groq_service.dart';
 import 'package:yogicast/core/services/replicate_service.dart';
+import 'package:yogicast/core/services/cache_service.dart';
 
 class PodcastProvider extends ChangeNotifier {
   final GroqService _groqService;
   final ReplicateService _replicateService;
+  final CacheService _cacheService;
   final List<Podcast> _podcasts = [];
   Podcast? _currentPodcast;
+  bool _isInitialized = false;
 
-  PodcastProvider(this._groqService, this._replicateService);
+  PodcastProvider(
+    this._groqService,
+    this._replicateService,
+    this._cacheService,
+  );
 
   List<Podcast> get podcasts => List.unmodifiable(_podcasts);
   Podcast? get currentPodcast => _currentPodcast;
+
+  Future<void> initialize() async {
+    if (_isInitialized) return;
+
+    try {
+      final cachedPodcasts = await _cacheService.getCachedPodcasts();
+      _podcasts.addAll(cachedPodcasts);
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error loading cached podcasts: $e');
+    } finally {
+      _isInitialized = true;
+    }
+  }
 
   Future<void> createPodcast(Podcast podcast) async {
     try {
       _podcasts.add(podcast);
       _currentPodcast = podcast;
       notifyListeners();
+
+      // Cache the new podcast
+      await _cacheService.cachePodcast(podcast);
     } catch (e) {
       debugPrint('Error creating podcast: $e');
       rethrow;
@@ -31,6 +55,7 @@ class PodcastProvider extends ChangeNotifier {
       // Update status to generating
       var updatedPodcast = podcast.copyWith(
         status: PodcastStatus.generating,
+        lastModified: DateTime.now(),
       );
       _updatePodcast(updatedPodcast);
 
@@ -62,8 +87,12 @@ class PodcastProvider extends ChangeNotifier {
       // Update podcast with new segments
       updatedPodcast = updatedPodcast.copyWith(
         segments: newSegments,
+        lastModified: DateTime.now(),
       );
       _updatePodcast(updatedPodcast);
+
+      // Generate audio for each segment
+      await generateAudio(updatedPodcast);
 
       // Generate visuals for each segment
       await generateVisuals(updatedPodcast);
@@ -71,6 +100,62 @@ class PodcastProvider extends ChangeNotifier {
       debugPrint('Error generating podcast content: $e');
       final errorPodcast = podcast.copyWith(
         status: PodcastStatus.error,
+        lastModified: DateTime.now(),
+      );
+      _updatePodcast(errorPodcast);
+      rethrow;
+    }
+  }
+
+  Future<void> generateAudio(Podcast podcast) async {
+    try {
+      var updatedPodcast = podcast.copyWith(
+        status: PodcastStatus.generating,
+        lastModified: DateTime.now(),
+      );
+      _updatePodcast(updatedPodcast);
+
+      // Update segments to show audio generation status
+      var segments = podcast.segments.map((segment) => 
+        segment.copyWith(status: SegmentStatus.generatingAudio)
+      ).toList();
+      
+      updatedPodcast = updatedPodcast.copyWith(
+        segments: segments,
+        lastModified: DateTime.now(),
+      );
+      _updatePodcast(updatedPodcast);
+
+      // Generate audio for each segment
+      final audioUrls = await _replicateService.generateSegmentAudio(
+        segments.map((s) => s.content).toList(),
+      );
+
+      // Update segments with audio paths
+      segments = List.generate(segments.length, (index) {
+        final segment = segments[index];
+        final audioUrl = audioUrls[index];
+        
+        return segment.copyWith(
+          audioPath: audioUrl,
+          status: audioUrl.isEmpty ? SegmentStatus.error : SegmentStatus.complete,
+        );
+      });
+
+      // Update podcast with new segments
+      updatedPodcast = updatedPodcast.copyWith(
+        segments: segments,
+        status: segments.any((s) => s.status == SegmentStatus.error) 
+          ? PodcastStatus.error 
+          : PodcastStatus.ready,
+        lastModified: DateTime.now(),
+      );
+      _updatePodcast(updatedPodcast);
+    } catch (e) {
+      debugPrint('Error generating audio: $e');
+      final errorPodcast = podcast.copyWith(
+        status: PodcastStatus.error,
+        lastModified: DateTime.now(),
       );
       _updatePodcast(errorPodcast);
       rethrow;
@@ -81,6 +166,18 @@ class PodcastProvider extends ChangeNotifier {
     try {
       var updatedPodcast = podcast.copyWith(
         status: PodcastStatus.generating,
+        lastModified: DateTime.now(),
+      );
+      _updatePodcast(updatedPodcast);
+
+      // Update segments to show visual generation status
+      var segments = podcast.segments.map((segment) =>
+        segment.copyWith(status: SegmentStatus.generatingVisual)
+      ).toList();
+      
+      updatedPodcast = updatedPodcast.copyWith(
+        segments: segments,
+        lastModified: DateTime.now(),
       );
       _updatePodcast(updatedPodcast);
 
@@ -91,39 +188,35 @@ class PodcastProvider extends ChangeNotifier {
       );
 
       // Generate visuals for each segment
-      final updatedSegments = await Future.wait(
-        podcast.segments.map((segment) async {
-          try {
-            final visualUrl = await _replicateService.generateSegmentVisual(
-              content: segment.content,
-              description: segment.content.length > 200 
-                  ? '${segment.content.substring(0, 200)}...' 
-                  : segment.content,
-            );
-
-            return segment.copyWith(
-              visualPath: visualUrl,
-              status: SegmentStatus.complete,
-            );
-          } catch (e) {
-            debugPrint('Error generating visual for segment ${segment.id}: $e');
-            return segment.copyWith(
-              status: SegmentStatus.error,
-            );
-          }
-        }),
+      final visualUrls = await _replicateService.generateSegmentVisuals(
+        segments.map((s) => s.content).toList(),
       );
+
+      // Update segments with visual paths
+      segments = List.generate(segments.length, (index) {
+        final segment = segments[index];
+        final visualUrl = visualUrls[index];
+        
+        return segment.copyWith(
+          visualPath: visualUrl,
+          status: visualUrl.isEmpty ? SegmentStatus.error : SegmentStatus.complete,
+        );
+      });
 
       // Update podcast with new segments and status
       updatedPodcast = updatedPodcast.copyWith(
-        segments: updatedSegments,
-        status: PodcastStatus.ready,
+        segments: segments,
+        status: segments.any((s) => s.status == SegmentStatus.error)
+          ? PodcastStatus.error
+          : PodcastStatus.ready,
+        lastModified: DateTime.now(),
       );
       _updatePodcast(updatedPodcast);
     } catch (e) {
       debugPrint('Error generating visuals: $e');
       final errorPodcast = podcast.copyWith(
         status: PodcastStatus.error,
+        lastModified: DateTime.now(),
       );
       _updatePodcast(errorPodcast);
       rethrow;
@@ -138,6 +231,11 @@ class PodcastProvider extends ChangeNotifier {
         _currentPodcast = podcast;
       }
       notifyListeners();
+
+      // Cache the updated podcast
+      _cacheService.cachePodcast(podcast).catchError((e) {
+        debugPrint('Error caching podcast: $e');
+      });
     }
   }
 }

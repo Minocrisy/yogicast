@@ -1,4 +1,5 @@
 import 'package:yogicast/core/services/api_service.dart';
+import 'package:yogicast/config/app_config.dart';
 
 class ReplicateService {
   final ReplicateApiService _apiService;
@@ -47,6 +48,48 @@ class ReplicateService {
       }
     } catch (e) {
       throw Exception('Failed to generate image: $e');
+    }
+  }
+
+  Future<String> generateAudio({
+    required String text,
+    String? voiceId,
+    double? speed,
+  }) async {
+    try {
+      // Using Coqui TTS model for high-quality speech synthesis
+      const model = 'cjwbw/coqui-tts:d6ef0e2e6ef7c7f42d5a9a7557399cb53c180a0a1a49ef90be48112d0f0c1ce1';
+      
+      final response = await _apiService.createPrediction(
+        model: model,
+        input: {
+          'text': text,
+          'speaker_id': voiceId ?? 'default',
+          'speed': speed ?? 1.0,
+          'sample_rate': AppConfig.defaultSampleRate,
+          'channels': AppConfig.defaultChannels,
+        },
+      );
+
+      final predictionId = response['id'] as String;
+
+      // Poll for the result
+      while (true) {
+        await Future.delayed(const Duration(seconds: 2));
+        final status = await _apiService.getPrediction(predictionId);
+        
+        if (status['status'] == 'succeeded') {
+          final outputs = status['output'] as List;
+          if (outputs.isEmpty) {
+            throw Exception('No audio was generated');
+          }
+          return outputs.first as String;
+        } else if (status['status'] == 'failed') {
+          throw Exception('Audio generation failed: ${status['error']}');
+        }
+      }
+    } catch (e) {
+      throw Exception('Failed to generate audio: $e');
     }
   }
 
@@ -111,5 +154,21 @@ Use a style that's both professional and creative.
     }
 
     return visualUrls;
+  }
+
+  Future<List<String>> generateSegmentAudio(List<String> segments) async {
+    final List<String> audioUrls = [];
+
+    for (final segment in segments) {
+      try {
+        final audioUrl = await generateAudio(text: segment);
+        audioUrls.add(audioUrl);
+      } catch (e) {
+        // If one audio fails, continue with others but add empty string
+        audioUrls.add('');
+      }
+    }
+
+    return audioUrls;
   }
 }
