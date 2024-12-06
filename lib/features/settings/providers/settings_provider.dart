@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class SettingsProvider extends ChangeNotifier {
   final SharedPreferences _prefs;
@@ -26,6 +26,9 @@ class SettingsProvider extends ChangeNotifier {
   }
 
   Future<void> setThemeMode(String value) async {
+    if (!['system', 'light', 'dark'].contains(value)) {
+      value = 'system';
+    }
     await _prefs.setString(_themeModeKey, value);
     notifyListeners();
   }
