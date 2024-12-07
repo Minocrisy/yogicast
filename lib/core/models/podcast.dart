@@ -12,6 +12,7 @@ class Podcast extends Equatable {
   final DateTime createdAt;
   final DateTime? lastModified;
   final PodcastStatus status;
+  final String? thumbnailUrl;
 
   const Podcast({
     required this.id,
@@ -21,6 +22,7 @@ class Podcast extends Equatable {
     required this.createdAt,
     this.lastModified,
     this.status = PodcastStatus.draft,
+    this.thumbnailUrl,
   });
 
   factory Podcast.fromJson(Map<String, dynamic> json) => _$PodcastFromJson(json);
@@ -35,6 +37,7 @@ class Podcast extends Equatable {
     createdAt,
     lastModified,
     status,
+    thumbnailUrl,
   ];
 
   Podcast copyWith({
@@ -43,6 +46,7 @@ class Podcast extends Equatable {
     List<PodcastSegment>? segments,
     DateTime? lastModified,
     PodcastStatus? status,
+    String? thumbnailUrl,
   }) {
     return Podcast(
       id: id,
@@ -52,6 +56,7 @@ class Podcast extends Equatable {
       createdAt: createdAt,
       lastModified: lastModified ?? this.lastModified,
       status: status ?? this.status,
+      thumbnailUrl: thumbnailUrl ?? this.thumbnailUrl,
     );
   }
 }
@@ -60,6 +65,7 @@ class Podcast extends Equatable {
 class PodcastSegment extends Equatable {
   final String id;
   final String content;
+  final String? description;
   final String? audioPath;
   final String? visualPath;
   final String? videoPath;
@@ -69,6 +75,7 @@ class PodcastSegment extends Equatable {
   const PodcastSegment({
     required this.id,
     required this.content,
+    this.description,
     this.audioPath,
     this.visualPath,
     this.videoPath,
@@ -84,6 +91,7 @@ class PodcastSegment extends Equatable {
   List<Object?> get props => [
     id,
     content,
+    description,
     audioPath,
     visualPath,
     videoPath,
@@ -93,6 +101,7 @@ class PodcastSegment extends Equatable {
 
   PodcastSegment copyWith({
     String? content,
+    String? description,
     String? audioPath,
     String? visualPath,
     String? videoPath,
@@ -102,6 +111,7 @@ class PodcastSegment extends Equatable {
     return PodcastSegment(
       id: id,
       content: content ?? this.content,
+      description: description ?? this.description,
       audioPath: audioPath ?? this.audioPath,
       visualPath: visualPath ?? this.visualPath,
       videoPath: videoPath ?? this.videoPath,

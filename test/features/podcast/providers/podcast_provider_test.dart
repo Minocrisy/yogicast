@@ -127,11 +127,11 @@ void main() {
       verify(mockReplicateService.generateSegmentVisuals(any)).called(1);
 
       // Verify podcast status updates
-      final updatedPodcast = provider.podcasts.first;
-      expect(updatedPodcast.status, equals(PodcastStatus.ready));
-      expect(updatedPodcast.segments.length, greaterThan(0));
+      final generatedPodcast = provider.podcasts.first;
+      expect(generatedPodcast.status, equals(PodcastStatus.ready));
+      expect(generatedPodcast.segments.length, greaterThan(0));
       
-      for (final segment in updatedPodcast.segments) {
+      for (final segment in generatedPodcast.segments) {
         expect(segment.status, equals(SegmentStatus.complete));
         expect(segment.audioPath, isNotNull);
         expect(segment.visualPath, isNotNull);
@@ -167,18 +167,10 @@ void main() {
         status: PodcastStatus.generating,
       );
 
-      // Simulate an update through generation
-      when(mockGroqService.generatePodcastScript(
-        title: anyNamed('title'),
-        description: anyNamed('description'),
-        content: anyNamed('content'),
-      )).thenThrow(Exception()); // Force an error to stop generation
-
-      try {
-        await provider.generatePodcastContent(podcast);
-      } catch (_) {}
-
-      expect(provider.currentPodcast?.status, equals(PodcastStatus.error));
+      await provider.updatePodcast(updatedPodcast);
+      expect(provider.currentPodcast, equals(updatedPodcast));
+      expect(provider.currentPodcast?.title, equals('Updated Title'));
+      expect(provider.currentPodcast?.status, equals(PodcastStatus.generating));
     });
   });
 }

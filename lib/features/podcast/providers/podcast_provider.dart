@@ -83,10 +83,11 @@ class PodcastProvider extends ChangeNotifier {
       // Create new segments with generated content
       final newSegments = await Future.wait(
         segmentScripts.map((script) async {
-          final description = await _groqService.generateSegmentDescription(script);
+          final segmentDescription = await _groqService.generateSegmentDescription(script);
           return PodcastSegment(
             id: const Uuid().v4(),
             content: script,
+            description: segmentDescription,
             status: SegmentStatus.pending,
           );
         }),
@@ -217,6 +218,7 @@ class PodcastProvider extends ChangeNotifier {
       // Update podcast with new segments and status
       updatedPodcast = updatedPodcast.copyWith(
         segments: segments,
+        thumbnailUrl: thumbnailUrl, // Use the generated thumbnail URL
         status: segments.any((s) => s.status == SegmentStatus.error)
           ? PodcastStatus.error
           : PodcastStatus.ready,

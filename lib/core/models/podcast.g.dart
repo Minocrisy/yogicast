@@ -19,6 +19,7 @@ Podcast _$PodcastFromJson(Map<String, dynamic> json) => Podcast(
           : DateTime.parse(json['lastModified'] as String),
       status: $enumDecodeNullable(_$PodcastStatusEnumMap, json['status']) ??
           PodcastStatus.draft,
+      thumbnailUrl: json['thumbnailUrl'] as String?,
     );
 
 Map<String, dynamic> _$PodcastToJson(Podcast instance) => <String, dynamic>{
@@ -29,6 +30,7 @@ Map<String, dynamic> _$PodcastToJson(Podcast instance) => <String, dynamic>{
       'createdAt': instance.createdAt.toIso8601String(),
       'lastModified': instance.lastModified?.toIso8601String(),
       'status': _$PodcastStatusEnumMap[instance.status]!,
+      'thumbnailUrl': instance.thumbnailUrl,
     };
 
 const _$PodcastStatusEnumMap = {
@@ -42,6 +44,7 @@ PodcastSegment _$PodcastSegmentFromJson(Map<String, dynamic> json) =>
     PodcastSegment(
       id: json['id'] as String,
       content: json['content'] as String,
+      description: json['description'] as String?,
       audioPath: json['audioPath'] as String?,
       visualPath: json['visualPath'] as String?,
       videoPath: json['videoPath'] as String?,
@@ -56,6 +59,7 @@ Map<String, dynamic> _$PodcastSegmentToJson(PodcastSegment instance) =>
     <String, dynamic>{
       'id': instance.id,
       'content': instance.content,
+      'description': instance.description,
       'audioPath': instance.audioPath,
       'visualPath': instance.visualPath,
       'videoPath': instance.videoPath,

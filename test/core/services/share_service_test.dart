@@ -22,6 +22,8 @@ void main() {
 🎵 Audio available
 🖼️ Visual available''';
 
+      final formattedContent = shareService.sharePodcast(testPodcast);
+      expect(formattedContent, contains(expectedSegmentContent));
       expect(segment.content, contains('Test content for segment 1'));
       expect(segment.audioPath, isNotNull);
       expect(segment.visualPath, isNotNull);
@@ -30,12 +32,14 @@ void main() {
 
     test('sharePodcastSegment formats segment correctly', () {
       final segment = testPodcast.segments.first;
-      const expectedContent = '''
+      final expectedContent = '''
 🎙️ Test Podcast - Segment
 📝 Test content for segment 1
 🎵 Audio available
 🖼️ Visual available''';
 
+      final formattedContent = shareService.sharePodcastSegment(segment, testPodcast.title);
+      expect(formattedContent, equals(expectedContent));
       expect(segment.content, contains('Test content for segment 1'));
       expect(segment.audioPath, isNotNull);
       expect(segment.visualPath, isNotNull);
