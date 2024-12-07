@@ -59,7 +59,7 @@ coverage/
 
 # Environment files
 .env*
-*.env
+!.env.template
 env.g.dart
 
 # Project specific
@@ -76,4 +76,3 @@ coverage/
 test/coverage/
 .test_coverage.dart
 lcov.info
-

@@ -55,7 +55,7 @@ void main() {
 
       testPodcast = createTestPodcast(
         segments: [
-          PodcastSegment(
+          const PodcastSegment(
             id: 'segment-1',
             content: 'Test content 1',
             audioPath: 'audio/test1.mp3',
@@ -63,7 +63,7 @@ void main() {
             videoPath: 'videos/test1.mp4',
             status: SegmentStatus.complete,
           ),
-          PodcastSegment(
+          const PodcastSegment(
             id: 'segment-2',
             content: 'Test content 2',
             status: SegmentStatus.pending,

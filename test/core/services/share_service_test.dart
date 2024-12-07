@@ -30,7 +30,7 @@ void main() {
 
     test('sharePodcastSegment formats segment correctly', () {
       final segment = testPodcast.segments.first;
-      final expectedContent = '''
+      const expectedContent = '''
 🎙️ Test Podcast - Segment
 📝 Test content for segment 1
 🎵 Audio available

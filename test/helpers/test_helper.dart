@@ -22,14 +22,14 @@ Podcast createTestPodcast({
     title: title ?? 'Test Podcast',
     description: description ?? 'Test Description',
     segments: segments ?? [
-      PodcastSegment(
+      const PodcastSegment(
         id: 'segment-1',
         content: 'Test content for segment 1',
         audioPath: 'audio/path/1.mp3',
         visualPath: 'images/path/1.jpg',
         status: SegmentStatus.complete,
       ),
-      PodcastSegment(
+      const PodcastSegment(
         id: 'segment-2',
         content: 'Test content for segment 2',
         status: SegmentStatus.pending,

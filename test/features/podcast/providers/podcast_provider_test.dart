@@ -38,7 +38,7 @@ void main() {
         id: id ?? 'test-id',
         title: 'Test Podcast',
         description: 'Test Description',
-        segments: [
+        segments: const [
           PodcastSegment(
             id: 'segment-1',
             content: 'Initial content',

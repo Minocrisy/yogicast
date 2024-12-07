@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:yogicast/config/app_config.dart';
-import 'package:yogicast/config/env.dart';
 import 'package:yogicast/core/models/podcast.dart';
 import 'package:yogicast/core/services/groq_service.dart';
 import 'package:yogicast/core/services/replicate_service.dart';
